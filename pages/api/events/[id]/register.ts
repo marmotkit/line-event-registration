@@ -27,49 +27,36 @@ export default async function handler(
       notes
     });
 
-    // 使用 Promise 處理資料庫操作
-    const event = await new Promise(async (resolve, reject) => {
-      try {
-        const result = await Event.findByIdAndUpdate(
-          id,
-          {
-            $push: {
-              participants: {
-                name,
-                numberOfPeople: Number(numberOfPeople),
-                notes,
-                registeredAt: new Date()
-              }
-            },
-            $inc: { currentParticipants: Number(numberOfPeople) }
-          },
-          { new: true }
-        );
-        resolve(result);
-      } catch (error) {
-        console.error('5. 資料庫操作錯誤:', error);
-        reject(error);
-      }
-    });
-
-    console.log('6. 資料庫操作結果:', event);
+    // 先找到活動
+    const event = await Event.findById(id);
+    console.log('5. 找到活動:', event ? '是' : '否');
 
     if (!event) {
-      console.log('7. 找不到活動');
-      return res.status(404).json({ 
-        success: false,
-        message: '找不到活動' 
-      });
+      return res.status(404).json({ message: '找不到活動' });
     }
 
-    console.log('8. 報名成功');
+    // 添加參與者
+    event.participants.push({
+      name,
+      numberOfPeople: Number(numberOfPeople),
+      notes: notes || '',
+      registeredAt: new Date()
+    });
+
+    // 更新總人數
+    event.currentParticipants += Number(numberOfPeople);
+
+    // 保存更改
+    await event.save();
+    console.log('6. 保存成功');
+
     return res.status(200).json({
       success: true,
       message: '報名成功'
     });
 
   } catch (error: any) {
-    console.error('9. 發生錯誤:', {
+    console.error('錯誤:', {
       name: error.name,
       message: error.message,
       code: error.code,
@@ -78,8 +65,7 @@ export default async function handler(
 
     return res.status(500).json({
       success: false,
-      message: '報名失敗',
-      error: error.message
+      message: error.message || '報名失敗'
     });
   }
 }
