@@ -4,7 +4,6 @@ import { TextField, Button, Container, Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { zhTW } from 'date-fns/locale';
 import { addDays } from 'date-fns';
 
 interface FormData {
@@ -24,9 +23,9 @@ export default function CreateEvent() {
   const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
-    startDate: addDays(now, 1),  // 預設為明天
-    endDate: addDays(now, 2),    // 預設為後天
-    registrationDeadline: now,    // 預設為現在
+    startDate: addDays(now, 1),
+    endDate: addDays(now, 2),
+    registrationDeadline: now,
     maxParticipants: '20',
     groupId: 'default-group'
   });
@@ -37,7 +36,6 @@ export default function CreateEvent() {
     e.preventDefault();
     setError('');
 
-    // 驗證日期
     if (!formData.startDate || !formData.endDate || !formData.registrationDeadline) {
       setError('請填寫所有日期欄位');
       return;
@@ -81,7 +79,7 @@ export default function CreateEvent() {
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={zhTW}>
+    <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Container maxWidth="sm">
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h4" component="h1" gutterBottom>
