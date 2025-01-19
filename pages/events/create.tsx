@@ -40,7 +40,7 @@ export default function CreateEvent() {
     }
 
     try {
-      const response = await fetch('/api/events/new', {
+      const response = await fetch('/api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
