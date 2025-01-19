@@ -2,7 +2,6 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
 import dbConnect from '../../../../utils/db';
 import Event from '../../../../models/Event';
-import Registration from '../../../../models/Registration';
 
 export default async function handler(
   req: NextApiRequest,
@@ -15,7 +14,7 @@ export default async function handler(
   try {
     await dbConnect();
 
-    const { id } = req.query;
+    const { id } = req.query;  // 使用 id 而不是 eventId
     const { name, numberOfPeople, notes } = req.body;
 
     // 驗證必要欄位
@@ -43,41 +42,56 @@ export default async function handler(
       });
     }
 
+    // 檢查活動狀態
     if (event.status !== 'active') {
-      return res.status(400).json({ message: '活動已結束或已取消' });
+      return res.status(400).json({
+        success: false,
+        message: '活動已結束報名'
+      });
     }
 
-    if (event.currentParticipants >= event.maxParticipants) {
-      return res.status(400).json({ message: '活動已額滿' });
+    // 檢查報名截止時間
+    if (new Date() > new Date(event.registrationDeadline)) {
+      return res.status(400).json({
+        success: false,
+        message: '已超過報名截止時間'
+      });
     }
 
-    // 檢查是否重複報名
-    const existingRegistration = await Registration.findOne({
-      eventId: id,
-      userId: name,
-    });
-
-    if (existingRegistration) {
-      return res.status(400).json({ message: '已經報名過此活動' });
+    // 檢查剩餘名額
+    const remainingSpots = event.maxParticipants - event.currentParticipants;
+    if (numberOfPeople > remainingSpots) {
+      return res.status(400).json({
+        success: false,
+        message: `剩餘名額不足，目前只剩 ${remainingSpots} 個名額`
+      });
     }
 
-    // 建立報名記錄
-    const registration = await Registration.create({
-      eventId: id,
-      userId: name,
-      lineProfile: {
-        name: name,
-        numberOfPeople: numberOfPeople,
-        notes: notes,
+    // 建立報名資料
+    const registration = {
+      name,
+      numberOfPeople,
+      notes: notes || '',
+      registeredAt: new Date()
+    };
+
+    // 更新活動資料
+    const updatedEvent = await Event.findByIdAndUpdate(
+      id,
+      {
+        $push: { registrations: registration },
+        $inc: { currentParticipants: numberOfPeople },
+        $set: { updatedAt: new Date() }
       },
+      { new: true, runValidators: true }
+    );
+
+    return res.status(200).json({
+      success: true,
+      message: '報名成功',
+      data: updatedEvent
     });
 
-    // 更新活動報名人數
-    await Event.findByIdAndUpdate(id, {
-      $inc: { currentParticipants: 1 },
-    });
-
-    res.status(201).json(registration);
   } catch (error: any) {
     console.error('報名處理錯誤:', error);
     return res.status(500).json({
