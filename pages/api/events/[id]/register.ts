@@ -1,19 +1,13 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
 import dbConnect from '../../../../utils/db';
+import Event from '../../../../models/Event';
 
 interface Registration {
   name: string;
   numberOfPeople: number;
   notes?: string;
   registeredAt: Date;
-}
-
-interface Event {
-  _id: mongoose.Types.ObjectId;
-  registrations: Registration[];
-  currentParticipants: number;
-  updatedAt: Date;
 }
 
 export default async function handler(
@@ -34,22 +28,24 @@ export default async function handler(
     const { name, numberOfPeople, notes } = req.body;
     console.log('收到報名資料:', { id, name, numberOfPeople, notes });
 
-    // 3. 直接使用 mongoose 操作
-    const db = mongoose.connection.db;
-    const collection = db.collection('events');
-    
-    // 4. 嘗試更新
-    const result = await collection.updateOne(
+    // 3. 驗證 ID
+    if (!mongoose.Types.ObjectId.isValid(id as string)) {
+      return res.status(400).json({ message: '無效的活動 ID' });
+    }
+
+    // 4. 建立報名資料
+    const registration: Registration = {
+      name,
+      numberOfPeople: Number(numberOfPeople),
+      notes: notes || '',
+      registeredAt: new Date()
+    };
+
+    // 5. 更新活動
+    const result = await Event.updateOne(
       { _id: new mongoose.Types.ObjectId(id as string) },
       {
-        $push: {
-          registrations: {
-            name,
-            numberOfPeople: Number(numberOfPeople),
-            notes: notes || '',
-            registeredAt: new Date()
-          }
-        },
+        $push: { registrations: registration },
         $inc: { currentParticipants: Number(numberOfPeople) },
         $set: { updatedAt: new Date() }
       }
@@ -64,10 +60,14 @@ export default async function handler(
       });
     }
 
+    // 6. 獲取更新後的活動
+    const updatedEvent = await Event.findById(id);
+    console.log('更新後的活動:', updatedEvent);
+
     return res.status(200).json({
       success: true,
       message: '報名成功',
-      result: result
+      data: updatedEvent
     });
 
   } catch (error: any) {
