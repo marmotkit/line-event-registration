@@ -9,12 +9,11 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  // 調試日誌
-  console.log('收到請求:', {
+  // 1. 記錄請求資訊
+  console.log('API 請求開始', {
     method: req.method,
-    url: req.url,
-    headers: req.headers,
-    body: req.body
+    body: req.body,
+    headers: req.headers
   });
 
   // 檢查請求方法是否允許
@@ -32,9 +31,12 @@ export default async function handler(
   }
 
   try {
-    // 連接資料庫
-    await dbConnect();
-    console.log('資料庫連接成功');
+    // 2. 嘗試連接資料庫
+    console.log('開始連接資料庫...');
+    const conn = await dbConnect();
+    console.log('資料庫連接成功', {
+      readyState: conn?.connection?.readyState
+    });
 
     if (req.method === 'GET') {
       const events = await Event.find({}).sort({ createdAt: -1 });
@@ -42,35 +44,89 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
-      console.log('收到的資料:', req.body);
+      // 3. 驗證請求資料
+      const requiredFields = [
+        'title',
+        'description',
+        'startDate',
+        'endDate',
+        'registrationDeadline',
+        'maxParticipants',
+        'groupId'
+      ];
 
-      // 轉換數字型別
+      const missingFields = requiredFields.filter(field => !req.body[field]);
+      if (missingFields.length > 0) {
+        console.log('缺少必要欄位', { missingFields });
+        return res.status(400).json({
+          message: '缺少必要欄位',
+          missingFields
+        });
+      }
+
+      // 4. 準備資料
       const formData = {
         ...req.body,
-        maxParticipants: Number(req.body.maxParticipants)
+        maxParticipants: Number(req.body.maxParticipants),
+        currentParticipants: 0,
+        participants: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      // 建立活動
-      const event = await Event.create(formData);
-      console.log('建立的活動:', event);
+      console.log('準備建立活動', formData);
 
-      return res.status(201).json(event);
+      // 5. 建立活動
+      try {
+        const event = await Event.create(formData);
+        console.log('活動建立成功', event);
+        return res.status(201).json(event);
+      } catch (createError: any) {
+        console.error('建立活動失敗', {
+          error: createError,
+          message: createError.message,
+          name: createError.name,
+          stack: createError.stack,
+          errors: createError.errors
+        });
+        throw createError;
+      }
     }
 
     return res.status(405).json({ message: '方法不允許' });
 
   } catch (error: any) {
-    console.error('API 錯誤:', {
+    console.error('API 錯誤', {
+      error,
       message: error.message,
+      name: error.name,
       stack: error.stack,
-      name: error.name
+      errors: error.errors
     });
 
-    // 回傳詳細錯誤訊息
+    // 根據錯誤類型返回適當的錯誤訊息
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({
+        message: '資料驗證失敗',
+        errors: Object.values(error.errors).map((err: any) => ({
+          field: err.path,
+          message: err.message
+        }))
+      });
+    }
+
+    if (error.name === 'MongoError' || error.name === 'MongoServerError') {
+      return res.status(500).json({
+        message: '資料庫錯誤',
+        error: error.message
+      });
+    }
+
     return res.status(500).json({
       message: '伺服器錯誤',
       error: error.message,
-      details: error.errors ? Object.values(error.errors).map((err: any) => err.message) : []
+      details: error.errors ? Object.values(error.errors).map((err: any) => err.message) : [],
+      name: error.name
     });
   }
 } 
