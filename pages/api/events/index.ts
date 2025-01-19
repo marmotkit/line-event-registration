@@ -13,61 +13,35 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  const { method } = req;
-  
-  await dbConnect();
-
-  // 允許跨域請求
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
-
-  // 處理 OPTIONS 請求
-  if (method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
   }
 
-  switch (method) {
-    case 'GET':
-      try {
-        const events = await Event.find({}).sort({ createdAt: -1 });
-        res.status(200).json(events);
-      } catch (error) {
-        console.error('取得活動列表失敗:', error);
-        res.status(500).json({ message: '取得活動列表失敗' });
-      }
-      break;
+  await dbConnect();
 
-    case 'POST':
-      try {
-        console.log('收到 POST 請求');
-        console.log('請求內容:', req.body);
-        
+  try {
+    switch (req.method) {
+      case 'GET':
+        const events = await Event.find({}).sort({ createdAt: -1 });
+        return res.status(200).json(events);
+
+      case 'POST':
+        console.log('收到的資料:', req.body);
         const event = await Event.create({
           ...req.body,
           currentParticipants: 0,
           createdAt: new Date(),
           updatedAt: new Date()
         });
-        
-        console.log('建立的活動:', event);
-        res.status(201).json(event);
-      } catch (error: any) {
-        console.error('建立活動失敗:', error);
-        res.status(500).json({ 
-          message: '建立活動失敗', 
-          error: error.message || '未知錯誤'
-        });
-      }
-      break;
+        return res.status(201).json(event);
 
-    default:
-      res.status(405).json({ message: `不支援的請求方法: ${method}` });
-      break;
+      default:
+        return res.status(405).json({ message: '方法不允許' });
+    }
+  } catch (error: any) {
+    console.error('API 錯誤:', error);
+    return res.status(500).json({ 
+      message: error.message || '伺服器錯誤'
+    });
   }
 } 
