@@ -20,10 +20,17 @@ export default async function handler(
 
     case 'POST':
       try {
-        const event = await Event.create(req.body);
+        console.log('收到的資料:', req.body);
+        const event = await Event.create({
+          ...req.body,
+          currentParticipants: 0,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        });
         res.status(201).json(event);
       } catch (error) {
-        res.status(500).json({ message: '建立活動失敗' });
+        console.error('建立活動失敗:', error);
+        res.status(500).json({ message: '建立活動失敗', error: error.message });
       }
       break;
 
