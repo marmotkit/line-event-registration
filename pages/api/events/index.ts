@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import mongoose from 'mongoose';
 import dbConnect from '../../../utils/db';
 import Event from '../../../models/Event';
 
@@ -14,7 +15,7 @@ export default async function handler(
   try {
     // 1. 連接資料庫
     console.log('嘗試連接資料庫...');
-    const mongoose = await dbConnect();
+    await dbConnect();
     console.log('資料庫連接狀態:', mongoose.connection.readyState);
 
     if (req.method === 'GET') {
