@@ -17,14 +17,13 @@ export default async function handler(
   }
 
   try {
-    console.log('連接資料庫...');
     await dbConnect();
     console.log('資料庫連接成功');
 
     const { id } = req.query;
     const { name, numberOfPeople, notes } = req.body;
 
-    console.log('報名資料:', { name, numberOfPeople, notes });
+    console.log('報名資料:', { id, name, numberOfPeople, notes });
 
     // 驗證必要欄位
     if (!name || !numberOfPeople) {
@@ -43,7 +42,7 @@ export default async function handler(
     }
 
     // 找到活動
-    const event = await Event.findById(id);
+    const event = await Event.findById(id).lean();
     console.log('找到活動:', event);
 
     if (!event) {
@@ -51,11 +50,6 @@ export default async function handler(
         success: false,
         message: '找不到活動'
       });
-    }
-
-    // 檢查活動是否有 registrations 欄位，如果沒有則初始化
-    if (!event.registrations) {
-      event.registrations = [];
     }
 
     // 建立報名資料
@@ -66,31 +60,24 @@ export default async function handler(
       registeredAt: new Date()
     };
 
-    console.log('準備更新活動資料:', {
-      registration,
-      currentParticipants: event.currentParticipants || 0
-    });
-
-    // 更新活動資料
-    const updatedEvent = await Event.findByIdAndUpdate(
-      id,
+    // 使用 updateOne 而不是 findByIdAndUpdate
+    const result = await Event.updateOne(
+      { _id: id },
       {
         $push: { registrations: registration },
         $inc: { currentParticipants: parseInt(numberOfPeople) },
         $set: { updatedAt: new Date() }
-      },
-      { 
-        new: true, 
-        runValidators: true,
-        upsert: false
       }
     );
 
-    console.log('更新後的活動資料:', updatedEvent);
+    console.log('更新結果:', result);
 
-    if (!updatedEvent) {
+    if (result.modifiedCount === 0) {
       throw new Error('更新活動資料失敗');
     }
+
+    // 重新獲取更新後的活動資料
+    const updatedEvent = await Event.findById(id);
 
     return res.status(200).json({
       success: true,
@@ -99,27 +86,12 @@ export default async function handler(
     });
 
   } catch (error: any) {
-    console.error('報名處理錯誤:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-      code: error.code
-    });
-
-    // 如果是 MongoDB 錯誤
-    if (error.name === 'MongoServerError') {
-      return res.status(500).json({
-        success: false,
-        message: '資料庫操作失敗',
-        error: error.message,
-        code: error.code
-      });
-    }
-
+    console.error('報名處理錯誤:', error);
     return res.status(500).json({
       success: false,
       message: '報名處理失敗',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 } 

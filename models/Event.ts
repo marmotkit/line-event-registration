@@ -19,7 +19,7 @@ const registrationSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-});
+}, { _id: false });  // 不為每個報名記錄生成 _id
 
 // 定義活動 Schema
 const eventSchema = new mongoose.Schema({
@@ -50,7 +50,8 @@ const eventSchema = new mongoose.Schema({
   },
   currentParticipants: {
     type: Number,
-    default: 0
+    default: 0,
+    min: [0, '目前報名人數不能小於 0']
   },
   groupId: {
     type: String,
