@@ -1,10 +1,20 @@
 import mongoose from 'mongoose';
 
-// 定義參與者 Schema
-const participantSchema = new mongoose.Schema({
-  userId: String,
-  displayName: String,
-  pictureUrl: String,
+// 定義報名資料 Schema
+const registrationSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, '請輸入姓名']
+  },
+  numberOfPeople: {
+    type: Number,
+    required: [true, '請輸入報名人數'],
+    min: [1, '報名人數至少為 1']
+  },
+  notes: {
+    type: String,
+    default: ''
+  },
   registeredAt: {
     type: Date,
     default: Date.now
@@ -36,22 +46,22 @@ const eventSchema = new mongoose.Schema({
   maxParticipants: {
     type: Number,
     required: [true, '請輸入人數上限'],
-    min: [1, '人數上限必須大於 0']
+    min: [1, '人數上限至少為 1']
   },
   currentParticipants: {
     type: Number,
     default: 0
   },
-  participants: [participantSchema],
   groupId: {
     type: String,
     required: [true, '請輸入 Line 群組 ID']
   },
   status: {
     type: String,
-    enum: ['active', 'closed', 'cancelled'],
+    enum: ['active', 'cancelled', 'completed'],
     default: 'active'
   },
+  registrations: [registrationSchema],
   createdBy: {
     type: String,
     required: [true, '請輸入建立者']
