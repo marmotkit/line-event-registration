@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import liff from '@line/liff';
 
@@ -20,29 +20,30 @@ export default function Events() {
   const [error, setError] = useState<string>('');
   const [userProfile, setUserProfile] = useState<any>(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const response = await fetch('/api/events');
-        const result = await response.json();
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/events');
+      const result = await response.json();
 
-        if (!response.ok) {
-          throw new Error(result.message || '獲取活動列表失敗');
-        }
-
-        // 確保 data 是陣列
-        const eventData = Array.isArray(result.data) ? result.data : [];
-        setEvents(eventData);
-      } catch (error: any) {
-        console.error('獲取活動列表失敗:', error);
-        setError(error.message || '獲取活動列表失敗');
-      } finally {
-        setLoading(false);
+      if (!response.ok) {
+        throw new Error(result.message || '獲取活動列表失敗');
       }
-    };
 
-    fetchEvents();
+      // 確保 data 是陣列
+      const eventData = Array.isArray(result.data) ? result.data : [];
+      setEvents(eventData);
+    } catch (error: any) {
+      console.error('獲取活動列表失敗:', error);
+      setError(error.message || '獲取活動列表失敗');
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   useEffect(() => {
     async function initializeLiff() {
@@ -62,7 +63,7 @@ export default function Events() {
     initializeLiff();
   }, []);
 
-  async function handleRegister(eventId: string) {
+  const handleRegister = async (eventId: string) => {
     if (!userProfile) {
       alert('請先登入');
       return;
@@ -79,9 +80,8 @@ export default function Events() {
           lineProfile: userProfile,
         }),
       });
-
       const data = await response.json();
-      
+
       if (response.ok) {
         alert('報名成功！');
         fetchEvents(); // 重新載入活動列表
@@ -92,7 +92,7 @@ export default function Events() {
       console.error('報名失敗:', error);
       alert('報名失敗，請稍後再試');
     }
-  }
+  };
 
   if (loading) {
     return <div className="text-center p-4">載入中...</div>;
@@ -147,13 +147,14 @@ export default function Events() {
                 {event.status === 'active' ? '開放報名' : '已結束'}
               </div>
             </div>
-            <button
-              onClick={() => handleRegister(event._id)}
-              disabled={event.currentParticipants >= event.maxParticipants || event.status !== 'active'}
-              className="mt-4 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 disabled:bg-gray-400"
-            >
-              {event.currentParticipants >= event.maxParticipants ? '已額滿' : '立即報名'}
-            </button>
+            {event.status === 'active' && (
+              <button
+                onClick={() => handleRegister(event._id)}
+                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+              >
+                報名參加
+              </button>
+            )}
           </div>
         ))}
       </div>
