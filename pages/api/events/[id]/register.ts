@@ -11,44 +11,38 @@ export default async function handler(
   }
 
   try {
+    // 1. 連接資料庫
     await dbConnect();
 
+    // 2. 先嘗試查詢活動
     const { id } = req.query;
-    const { name, numberOfPeople, notes } = req.body;
-
-    // 找到活動並更新
-    const event = await Event.findByIdAndUpdate(
-      id,
-      {
-        $push: {
-          registrations: {
-            name,
-            numberOfPeople: Number(numberOfPeople),
-            notes,
-            registeredAt: new Date()
-          }
-        },
-        $inc: { currentParticipants: Number(numberOfPeople) },
-        $set: { updatedAt: new Date() }
-      },
-      { new: true }
-    );
+    const event = await Event.findById(id);
 
     if (!event) {
-      return res.status(404).json({ message: '找不到活動' });
+      return res.status(404).json({ 
+        success: false,
+        message: '找不到活動' 
+      });
     }
 
+    // 3. 如果找到活動，返回成功
     return res.status(200).json({
       success: true,
-      message: '報名成功'
+      message: '找到活動',
+      event: event
     });
 
   } catch (error: any) {
-    console.error('報名失敗:', error);
+    console.error('操作失敗:', {
+      error: error,
+      message: error.message,
+      stack: error.stack
+    });
+
     return res.status(500).json({
       success: false,
-      message: '報名失敗',
+      message: '操作失敗',
       error: error.message
     });
   }
-} 
+}
