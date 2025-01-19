@@ -2,6 +2,20 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
 import dbConnect from '../../../../utils/db';
 
+interface Registration {
+  name: string;
+  numberOfPeople: number;
+  notes?: string;
+  registeredAt: Date;
+}
+
+interface Event {
+  _id: mongoose.Types.ObjectId;
+  registrations: Registration[];
+  currentParticipants: number;
+  updatedAt: Date;
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -21,10 +35,11 @@ export default async function handler(
     console.log('收到報名資料:', { id, name, numberOfPeople, notes });
 
     // 3. 直接使用 mongoose 操作
-    const Event = mongoose.model('Event');
+    const db = mongoose.connection.db;
+    const collection = db.collection('events');
     
     // 4. 嘗試更新
-    const result = await Event.collection.updateOne(
+    const result = await collection.updateOne(
       { _id: new mongoose.Types.ObjectId(id as string) },
       {
         $push: {
