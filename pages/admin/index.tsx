@@ -9,10 +9,13 @@ interface EventForm {
   registrationDeadline: string;
   maxParticipants: number;
   groupId: string;
+  status: string;
+  createdBy: string;
 }
 
 export default function Admin() {
   const router = useRouter();
+  const [error, setError] = useState<string>('');
   const [formData, setFormData] = useState<EventForm>({
     title: '',
     description: '',
@@ -21,6 +24,8 @@ export default function Admin() {
     registrationDeadline: '',
     maxParticipants: 0,
     groupId: '',
+    status: 'active',
+    createdBy: 'admin'
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -33,34 +38,44 @@ export default function Admin() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // 清除之前的錯誤
+
     try {
+      console.log('送出的資料:', formData);
+
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          createdBy: 'admin',
-          status: 'active'
-        }),
+        body: JSON.stringify(formData),
       });
 
-      if (response.ok) {
-        alert('活動建立成功！');
-        router.push('/events');
-      } else {
-        throw new Error('活動建立失敗');
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || data.error || '未知錯誤');
       }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('活動建立失敗，請稍後再試');
+
+      console.log('回應:', data);
+      alert('活動建立成功！');
+      router.push('/events');
+    } catch (error: any) {
+      console.error('建立活動失敗:', error);
+      setError(error.message || '建立活動失敗，請稍後再試');
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-6">建立新活動</h1>
+    <div className="max-w-4xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">建立新活動</h1>
+      
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block mb-1">活動名稱</label>
