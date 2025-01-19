@@ -4,7 +4,7 @@ import { TextField, Button, Container, Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import zhTW from 'date-fns/locale/zh-TW';
+import { zhTW } from 'date-fns/locale';
 import { addDays } from 'date-fns';
 
 interface FormData {
