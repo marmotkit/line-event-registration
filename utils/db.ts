@@ -14,23 +14,21 @@ interface MongooseCache {
 
 // 定義全域變數介面
 declare global {
-  var mongoose: {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-  } | undefined;
+  var mongoose: MongooseCache | undefined;
 }
 
 // 初始化快取
-const cached: MongooseCache = global.mongoose || {
+let cached: MongooseCache = global.mongoose || {
   conn: null,
-  promise: null,
+  promise: null
 };
 
+// 確保全域變數存在
 if (!global.mongoose) {
   global.mongoose = cached;
 }
 
-async function dbConnect() {
+async function dbConnect(): Promise<typeof mongoose> {
   if (cached.conn) {
     console.log('使用已存在的資料庫連接');
     return cached.conn;
@@ -42,7 +40,7 @@ async function dbConnect() {
     };
 
     console.log('建立新的資料庫連接...');
-    console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]*@/, ':****@')); // 隱藏密碼
+    console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]*@/, ':****@'));
 
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       console.log('資料庫連接成功');
@@ -51,9 +49,10 @@ async function dbConnect() {
   }
 
   try {
-    cached.conn = await cached.promise;
-    console.log('資料庫連接狀態:', cached.conn.connection.readyState);
-    return cached.conn;
+    const mongoose = await cached.promise;
+    cached.conn = mongoose;
+    console.log('資料庫連接狀態:', mongoose.connection.readyState);
+    return mongoose;
   } catch (error) {
     cached.promise = null;
     console.error('等待資料庫連接時發生錯誤:', error);
