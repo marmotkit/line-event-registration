@@ -14,11 +14,23 @@ interface Event {
   status: string;
 }
 
+interface RegistrationForm {
+  name: string;
+  numberOfPeople: number;
+  notes: string;
+}
+
 export default function Events() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
+  const [registrationForm, setRegistrationForm] = useState<RegistrationForm>({
+    name: '',
+    numberOfPeople: 1,
+    notes: ''
+  });
 
   const fetchEvents = useCallback(async () => {
     try {
@@ -63,28 +75,43 @@ export default function Events() {
     initializeLiff();
   }, []);
 
-  const handleRegister = async (eventId: string) => {
-    if (!userProfile) {
-      alert('請先登入');
-      return;
-    }
+  const handleRegisterClick = (eventId: string) => {
+    setSelectedEvent(eventId);
+    setRegistrationForm({
+      name: '',
+      numberOfPeople: 1,
+      notes: ''
+    });
+  };
 
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setRegistrationForm(prev => ({
+      ...prev,
+      [name]: name === 'numberOfPeople' ? parseInt(value) || 1 : value
+    }));
+  };
+
+  const handleRegister = async (eventId: string) => {
     try {
+      if (!registrationForm.name.trim()) {
+        alert('請輸入姓名');
+        return;
+      }
+
       const response = await fetch(`/api/events/${eventId}/register`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          userId: userProfile.userId,
-          lineProfile: userProfile,
-        }),
+        body: JSON.stringify(registrationForm)
       });
       const data = await response.json();
 
       if (response.ok) {
         alert('報名成功！');
-        fetchEvents(); // 重新載入活動列表
+        setSelectedEvent(null);
+        fetchEvents();
       } else {
         alert(data.message || '報名失敗');
       }
@@ -147,13 +174,72 @@ export default function Events() {
                 {event.status === 'active' ? '開放報名' : '已結束'}
               </div>
             </div>
+
             {event.status === 'active' && (
-              <button
-                onClick={() => handleRegister(event._id)}
-                className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-              >
-                報名參加
-              </button>
+              <>
+                {selectedEvent === event._id ? (
+                  <div className="mt-4 border-t pt-4">
+                    <h3 className="font-medium mb-2">報名表</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm mb-1">姓名 *</label>
+                        <input
+                          type="text"
+                          name="name"
+                          value={registrationForm.name}
+                          onChange={handleFormChange}
+                          className="w-full border rounded p-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1">報名人數 *</label>
+                        <input
+                          type="number"
+                          name="numberOfPeople"
+                          value={registrationForm.numberOfPeople}
+                          onChange={handleFormChange}
+                          min="1"
+                          max={event.maxParticipants - event.currentParticipants}
+                          className="w-full border rounded p-2"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm mb-1">備註</label>
+                        <textarea
+                          name="notes"
+                          value={registrationForm.notes}
+                          onChange={handleFormChange}
+                          className="w-full border rounded p-2"
+                          rows={3}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleRegister(event._id)}
+                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                        >
+                          確認報名
+                        </button>
+                        <button
+                          onClick={() => setSelectedEvent(null)}
+                          className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors"
+                        >
+                          取消
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => handleRegisterClick(event._id)}
+                    className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
+                  >
+                    報名參加
+                  </button>
+                )}
+              </>
             )}
           </div>
         ))}
