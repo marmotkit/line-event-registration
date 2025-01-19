@@ -40,17 +40,12 @@ export default function CreateEvent() {
     }
 
     try {
-      const response = await fetch('/api/events/create', {
+      const response = await fetch('/api/events/new', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          startDate: formData.startDate.toISOString(),
-          endDate: formData.endDate.toISOString(),
-          registrationDeadline: formData.registrationDeadline.toISOString(),
-        })
+        body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
