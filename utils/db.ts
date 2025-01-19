@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI!;
+const MONGODB_URI = process.env.MONGODB_URI;
 
 if (!MONGODB_URI) {
   throw new Error('請設定 MONGODB_URI 環境變數');
@@ -20,17 +20,15 @@ declare global {
   } | undefined;
 }
 
-let cached = (global as any).mongoose as MongooseCache;
+let cached = global.mongoose;
 
 if (!cached) {
-  cached = global.mongoose = {
-    conn: null,
-    promise: null,
-  };
+  cached = global.mongoose = { conn: null, promise: null };
 }
 
 async function dbConnect() {
   if (cached.conn) {
+    console.log('使用已存在的資料庫連接');
     return cached.conn;
   }
 
@@ -39,19 +37,41 @@ async function dbConnect() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-      return mongoose;
-    });
+    console.log('建立新的資料庫連接...');
+    console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]*@/, ':****@')); // 隱藏密碼
+
+    try {
+      cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+        console.log('資料庫連接成功');
+        return mongoose;
+      });
+    } catch (error) {
+      console.error('資料庫連接失敗:', error);
+      throw error;
+    }
   }
 
   try {
     cached.conn = await cached.promise;
-  } catch (e) {
-    cached.promise = null;
-    throw e;
+    console.log('資料庫連接狀態:', cached.conn.connection.readyState);
+    return cached.conn;
+  } catch (error) {
+    console.error('等待資料庫連接時發生錯誤:', error);
+    throw error;
   }
-
-  return cached.conn;
 }
+
+// 監聽連接事件
+mongoose.connection.on('connected', () => {
+  console.log('Mongoose 已連接');
+});
+
+mongoose.connection.on('error', (err) => {
+  console.error('Mongoose 連接錯誤:', err);
+});
+
+mongoose.connection.on('disconnected', () => {
+  console.log('Mongoose 已斷開連接');
+});
 
 export default dbConnect; 
