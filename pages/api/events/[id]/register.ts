@@ -1,91 +1,58 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
-import { WithId, Document } from 'mongodb';
 import dbConnect from '../../../../utils/db';
-
-interface Participant {
-  name: string;
-  numberOfPeople: number;
-  notes?: string;
-  registeredAt: Date;
-}
-
-interface EventDocument extends WithId<Document> {
-  participants: Participant[];
-  currentParticipants: number;
-  updatedAt: Date;
-}
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log('1. 開始處理報名請求');
-  
   if (req.method !== 'POST') {
     return res.status(405).json({ message: '方法不允許' });
   }
 
   try {
-    console.log('2. 連接資料庫前');
+    // 1. 連接資料庫
     await dbConnect();
-    console.log('3. 資料庫已連接');
-
-    const { id } = req.query;
-    const { name, numberOfPeople, notes } = req.body;
     
-    console.log('4. 收到的資料:', {
-      id,
-      name,
-      numberOfPeople,
-      notes
+    // 2. 檢查連接狀態
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error(`資料庫未連接，目前狀態: ${mongoose.connection.readyState}`);
+    }
+
+    // 3. 獲取活動 ID
+    const { id } = req.query;
+    if (!mongoose.Types.ObjectId.isValid(id as string)) {
+      return res.status(400).json({ message: '無效的活動 ID' });
+    }
+
+    // 4. 檢查資料庫是否可用
+    const db = mongoose.connection.db;
+    if (!db) {
+      throw new Error('無法獲取資料庫實例');
+    }
+
+    // 5. 檢查集合是否存在
+    const collections = await db.listCollections().toArray();
+    const hasEventsCollection = collections.some(col => col.name === 'events');
+    if (!hasEventsCollection) {
+      throw new Error('events 集合不存在');
+    }
+
+    // 6. 查詢活動是否存在
+    const collection = db.collection('events');
+    const event = await collection.findOne({ 
+      _id: new mongoose.Types.ObjectId(id as string) 
     });
 
-    // 確保資料庫已連接
-    if (!mongoose.connection.db) {
-      throw new Error('資料庫未連接');
+    if (!event) {
+      return res.status(404).json({ message: '找不到活動' });
     }
 
-    // 使用原生 MongoDB 操作
-    const collection = mongoose.connection.db.collection<EventDocument>('events');
-
-    // 建立新的參與者資料
-    const newParticipant: Participant = {
-      name,
-      numberOfPeople: Number(numberOfPeople),
-      notes: notes || '',
-      registeredAt: new Date()
-    };
-
-    // 直接更新文檔
-    const result = await collection.updateOne(
-      { _id: new mongoose.Types.ObjectId(id as string) },
-      {
-        $push: { participants: newParticipant } as any,
-        $inc: { currentParticipants: Number(numberOfPeople) },
-        $set: { updatedAt: new Date() }
-      }
-    );
-
-    console.log('5. 更新結果:', result);
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({ 
-        success: false,
-        message: '找不到活動' 
-      });
-    }
-
-    if (result.modifiedCount === 0) {
-      return res.status(400).json({ 
-        success: false,
-        message: '更新失敗' 
-      });
-    }
-
+    // 7. 返回成功
     return res.status(200).json({
       success: true,
-      message: '報名成功'
+      message: '資料庫連接正常',
+      event: event
     });
 
   } catch (error: any) {
@@ -99,7 +66,7 @@ export default async function handler(
 
     return res.status(500).json({
       success: false,
-      message: error.message || '報名失敗',
+      message: error.message || '操作失敗',
       details: {
         name: error.name,
         code: error.code,
