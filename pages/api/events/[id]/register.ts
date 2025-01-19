@@ -1,6 +1,20 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import mongoose from 'mongoose';
+import { WithId, Document } from 'mongodb';
 import dbConnect from '../../../../utils/db';
+
+interface Participant {
+  name: string;
+  numberOfPeople: number;
+  notes?: string;
+  registeredAt: Date;
+}
+
+interface EventDocument extends WithId<Document> {
+  participants: Participant[];
+  currentParticipants: number;
+  updatedAt: Date;
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -33,20 +47,21 @@ export default async function handler(
     }
 
     // 使用原生 MongoDB 操作
-    const collection = mongoose.connection.db.collection('events');
+    const collection = mongoose.connection.db.collection<EventDocument>('events');
+
+    // 建立新的參與者資料
+    const newParticipant: Participant = {
+      name,
+      numberOfPeople: Number(numberOfPeople),
+      notes: notes || '',
+      registeredAt: new Date()
+    };
 
     // 直接更新文檔
     const result = await collection.updateOne(
       { _id: new mongoose.Types.ObjectId(id as string) },
       {
-        $push: {
-          participants: {
-            name,
-            numberOfPeople: Number(numberOfPeople),
-            notes: notes || '',
-            registeredAt: new Date()
-          }
-        },
+        $push: { participants: newParticipant } as any,
         $inc: { currentParticipants: Number(numberOfPeople) },
         $set: { updatedAt: new Date() }
       }
