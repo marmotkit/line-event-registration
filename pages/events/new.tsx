@@ -4,11 +4,21 @@ import { TextField, Button, Container, Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { addDays } from 'date-fns';
 
+interface FormData {
+  title: string;
+  description: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  registrationDeadline: Date | null;
+  maxParticipants: string;
+  groupId: string;
+}
+
 export default function NewEvent() {
   const router = useRouter();
   const now = new Date();
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     startDate: addDays(now, 1),
@@ -24,13 +34,23 @@ export default function NewEvent() {
     e.preventDefault();
     setError('');
 
+    if (!formData.startDate || !formData.endDate || !formData.registrationDeadline) {
+      setError('請填寫所有日期欄位');
+      return;
+    }
+
     try {
       const response = await fetch('/api/events', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({
+          ...formData,
+          startDate: formData.startDate.toISOString(),
+          endDate: formData.endDate.toISOString(),
+          registrationDeadline: formData.registrationDeadline.toISOString(),
+        })
       });
 
       if (!response.ok) {
