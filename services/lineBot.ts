@@ -1,11 +1,11 @@
-import { Client } from '@line/bot-sdk';
+import { Client, FlexMessage } from '@line/bot-sdk';
 
 const config = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
   channelSecret: process.env.LINE_CHANNEL_SECRET!,
 };
 
-class LineBotService {
+export class LineBotService {
   private client: Client;
 
   constructor() {
@@ -13,8 +13,8 @@ class LineBotService {
   }
 
   async pushEventMessage(groupId: string, event: any) {
-    const message = {
-      type: 'flex',
+    const message: FlexMessage = {
+      type: "flex",
       altText: '新活動通知',
       contents: {
         type: 'bubble',
@@ -40,7 +40,7 @@ class LineBotService {
               action: {
                 type: 'uri',
                 label: '立即報名',
-                uri: `${process.env.NEXT_PUBLIC_LIFF_URL}/event/${event._id}`
+                uri: `${process.env.NEXT_PUBLIC_LIFF_URL}/event/${event.id}`
               },
               margin: 'md'
             }
