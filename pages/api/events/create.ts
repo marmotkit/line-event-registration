@@ -1,5 +1,4 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import mongoose from 'mongoose';
 import dbConnect from '../../../utils/db';
 import Event from '../../../models/Event';
 
@@ -7,8 +6,18 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  // 處理 OPTIONS 請求
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Allow', 'POST');
+    return res.status(200).end();
+  }
+
+  // 只允許 POST 請求
   if (req.method !== 'POST') {
-    return res.status(405).json({ message: '方法不允許' });
+    return res.status(405).json({ 
+      success: false,
+      message: '方法不允許，此端點只接受 POST 請求' 
+    });
   }
 
   try {
