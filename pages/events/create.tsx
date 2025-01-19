@@ -27,7 +27,7 @@ export default function CreateEvent() {
     endDate: addDays(now, 2),
     registrationDeadline: now,
     maxParticipants: '20',
-    groupId: 'default-group'
+    groupId: 'default'
   });
 
   const [error, setError] = useState('');
@@ -52,18 +52,12 @@ export default function CreateEvent() {
     }
 
     try {
-      const response = await fetch('/api/events', {
+      const response = await fetch('/api/events/create', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          startDate: formData.startDate.toISOString(),
-          endDate: formData.endDate.toISOString(),
-          registrationDeadline: formData.registrationDeadline.toISOString(),
-          maxParticipants: Number(formData.maxParticipants)
-        })
+        body: JSON.stringify(formData)
       });
 
       if (!response.ok) {
