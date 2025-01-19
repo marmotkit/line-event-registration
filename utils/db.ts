@@ -6,13 +6,13 @@ if (!MONGODB_URI) {
   throw new Error('請設定 MONGODB_URI 環境變數');
 }
 
-// 定義快取型別
+// 定義快取介面
 interface MongooseCache {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
-// 擴展 NodeJS.Global 介面
+// 定義全域變數介面
 declare global {
   var mongoose: {
     conn: typeof mongoose | null;
@@ -20,10 +20,14 @@ declare global {
   } | undefined;
 }
 
-let cached = global.mongoose;
+// 初始化快取
+const cached: MongooseCache = global.mongoose || {
+  conn: null,
+  promise: null,
+};
 
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+if (!global.mongoose) {
+  global.mongoose = cached;
 }
 
 async function dbConnect() {
@@ -40,15 +44,10 @@ async function dbConnect() {
     console.log('建立新的資料庫連接...');
     console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]*@/, ':****@')); // 隱藏密碼
 
-    try {
-      cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
-        console.log('資料庫連接成功');
-        return mongoose;
-      });
-    } catch (error) {
-      console.error('資料庫連接失敗:', error);
-      throw error;
-    }
+    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
+      console.log('資料庫連接成功');
+      return mongoose;
+    });
   }
 
   try {
@@ -56,6 +55,7 @@ async function dbConnect() {
     console.log('資料庫連接狀態:', cached.conn.connection.readyState);
     return cached.conn;
   } catch (error) {
+    cached.promise = null;
     console.error('等待資料庫連接時發生錯誤:', error);
     throw error;
   }
