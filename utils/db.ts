@@ -6,21 +6,15 @@ if (!MONGODB_URI) {
   throw new Error('請設定 MONGODB_URI 環境變數');
 }
 
-// 定義快取介面
-interface MongooseCache {
+interface Cached {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
 }
 
-// 定義全域變數介面
-declare global {
-  var mongoose: MongooseCache | undefined;
-}
+let cached: Cached = (global as any).mongoose || { conn: null, promise: null };
 
-let cached = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+if (!(global as any).mongoose) {
+  (global as any).mongoose = cached;
 }
 
 async function dbConnect() {
