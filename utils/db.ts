@@ -6,10 +6,27 @@ if (!MONGODB_URI) {
   throw new Error('請設定 MONGODB_URI 環境變數');
 }
 
-let cached = global.mongoose;
+// 定義快取型別
+interface MongooseCache {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+}
+
+// 擴展 NodeJS.Global 介面
+declare global {
+  var mongoose: {
+    conn: typeof mongoose | null;
+    promise: Promise<typeof mongoose> | null;
+  } | undefined;
+}
+
+let cached = (global as any).mongoose as MongooseCache;
 
 if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
+  cached = global.mongoose = {
+    conn: null,
+    promise: null,
+  };
 }
 
 async function dbConnect() {
