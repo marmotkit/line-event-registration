@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import mongoose from 'mongoose';
 import dbConnect from '../../../../utils/db';
-import Event from '../../../../models/Event';
 
 export default async function handler(
   req: NextApiRequest,
@@ -27,28 +27,42 @@ export default async function handler(
       notes
     });
 
-    // 先找到活動
-    const event = await Event.findById(id);
-    console.log('5. 找到活動:', event ? '是' : '否');
+    // 使用原生 MongoDB 操作
+    const db = mongoose.connection.db;
+    const collection = db.collection('events');
 
-    if (!event) {
-      return res.status(404).json({ message: '找不到活動' });
+    // 直接更新文檔
+    const result = await collection.updateOne(
+      { _id: new mongoose.Types.ObjectId(id as string) },
+      {
+        $push: {
+          participants: {
+            name,
+            numberOfPeople: Number(numberOfPeople),
+            notes: notes || '',
+            registeredAt: new Date()
+          }
+        },
+        $inc: { currentParticipants: Number(numberOfPeople) },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    console.log('5. 更新結果:', result);
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({ 
+        success: false,
+        message: '找不到活動' 
+      });
     }
 
-    // 添加參與者
-    event.participants.push({
-      name,
-      numberOfPeople: Number(numberOfPeople),
-      notes: notes || '',
-      registeredAt: new Date()
-    });
-
-    // 更新總人數
-    event.currentParticipants += Number(numberOfPeople);
-
-    // 保存更改
-    await event.save();
-    console.log('6. 保存成功');
+    if (result.modifiedCount === 0) {
+      return res.status(400).json({ 
+        success: false,
+        message: '更新失敗' 
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -65,7 +79,11 @@ export default async function handler(
 
     return res.status(500).json({
       success: false,
-      message: error.message || '報名失敗'
+      message: error.message || '報名失敗',
+      details: {
+        name: error.name,
+        code: error.code
+      }
     });
   }
 }
