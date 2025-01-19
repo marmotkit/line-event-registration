@@ -27,9 +27,13 @@ export default async function handler(
       notes
     });
 
+    // 確保資料庫已連接
+    if (!mongoose.connection.db) {
+      throw new Error('資料庫未連接');
+    }
+
     // 使用原生 MongoDB 操作
-    const db = mongoose.connection.db;
-    const collection = db.collection('events');
+    const collection = mongoose.connection.db.collection('events');
 
     // 直接更新文檔
     const result = await collection.updateOne(
@@ -74,7 +78,8 @@ export default async function handler(
       name: error.name,
       message: error.message,
       code: error.code,
-      stack: error.stack
+      stack: error.stack,
+      connectionState: mongoose.connection.readyState
     });
 
     return res.status(500).json({
@@ -82,7 +87,8 @@ export default async function handler(
       message: error.message || '報名失敗',
       details: {
         name: error.name,
-        code: error.code
+        code: error.code,
+        connectionState: mongoose.connection.readyState
       }
     });
   }
