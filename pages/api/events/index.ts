@@ -32,7 +32,9 @@ export default async function handler(
   }
 
   try {
+    // 連接資料庫
     await dbConnect();
+    console.log('資料庫連接成功');
 
     if (req.method === 'GET') {
       const events = await Event.find({}).sort({ createdAt: -1 });
@@ -40,45 +42,35 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
-      // 調試日誌
-      console.log('開始處理 POST 請求');
-      console.log('請求內容:', req.body);
+      console.log('收到的資料:', req.body);
 
-      // 驗證必要欄位
-      const requiredFields = ['title', 'description', 'startDate', 'endDate', 'maxParticipants', 'groupId'];
-      const missingFields = requiredFields.filter(field => !req.body[field]);
-      
-      if (missingFields.length > 0) {
-        return res.status(400).json({
-          message: '缺少必要欄位',
-          missingFields
-        });
-      }
-
-      const event = await Event.create({
+      // 轉換數字型別
+      const formData = {
         ...req.body,
-        currentParticipants: 0,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
+        maxParticipants: Number(req.body.maxParticipants)
+      };
 
-      // 調試日誌
-      console.log('活動建立成功:', event);
+      // 建立活動
+      const event = await Event.create(formData);
+      console.log('建立的活動:', event);
 
       return res.status(201).json(event);
     }
+
+    return res.status(405).json({ message: '方法不允許' });
+
   } catch (error: any) {
-    // 詳細的錯誤日誌
     console.error('API 錯誤:', {
       message: error.message,
       stack: error.stack,
       name: error.name
     });
 
+    // 回傳詳細錯誤訊息
     return res.status(500).json({
       message: '伺服器錯誤',
       error: error.message,
-      name: error.name
+      details: error.errors ? Object.values(error.errors).map((err: any) => err.message) : []
     });
   }
 } 
