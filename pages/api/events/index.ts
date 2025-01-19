@@ -20,17 +20,44 @@ export default async function handler(
 
     if (req.method === 'GET') {
       const events = await Event.find({}).sort({ createdAt: -1 });
-      return res.status(200).json(events);
+      return res.status(200).json({
+        success: true,
+        data: events
+      });
     }
 
     if (req.method === 'POST') {
-      // 2. 記錄請求資料
-      console.log('收到 POST 請求資料:', JSON.stringify(req.body, null, 2));
+      const {
+        title,
+        description,
+        startDate,
+        endDate,
+        registrationDeadline,
+        maxParticipants,
+        groupId,
+        status = 'active',
+        createdBy = 'admin'
+      } = req.body;
 
-      // 3. 建立活動文件
+      // 驗證必要欄位
+      if (!title || !description || !startDate || !endDate || !registrationDeadline || !maxParticipants || !groupId) {
+        return res.status(400).json({
+          success: false,
+          message: '缺少必要欄位'
+        });
+      }
+
+      // 轉換日期字串為 Date 物件
       const eventData = {
-        ...req.body,
-        maxParticipants: parseInt(req.body.maxParticipants),
+        title,
+        description,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        registrationDeadline: new Date(registrationDeadline),
+        maxParticipants: parseInt(maxParticipants),
+        groupId,
+        status,
+        createdBy,
         currentParticipants: 0,
         participants: [],
         createdAt: new Date(),
@@ -39,18 +66,47 @@ export default async function handler(
 
       console.log('準備建立活動:', JSON.stringify(eventData, null, 2));
 
-      // 4. 嘗試儲存到資料庫
       try {
+        // 驗證日期
+        if (eventData.endDate <= eventData.startDate) {
+          return res.status(400).json({
+            success: false,
+            message: '結束時間必須晚於開始時間'
+          });
+        }
+
+        if (eventData.registrationDeadline >= eventData.startDate) {
+          return res.status(400).json({
+            success: false,
+            message: '報名截止時間必須早於活動開始時間'
+          });
+        }
+
+        // 建立活動
         const event = new Event(eventData);
         const savedEvent = await event.save();
+        
         console.log('活動建立成功:', savedEvent);
-        return res.status(201).json(savedEvent);
+        return res.status(201).json({
+          success: true,
+          data: savedEvent
+        });
       } catch (saveError: any) {
         console.error('儲存活動時發生錯誤:', {
           error: saveError,
           message: saveError.message,
+          name: saveError.name,
           stack: saveError.stack
         });
+
+        if (saveError.name === 'ValidationError') {
+          return res.status(400).json({
+            success: false,
+            message: '資料驗證失敗',
+            errors: Object.values(saveError.errors).map((err: any) => err.message)
+          });
+        }
+
         throw saveError;
       }
     }
@@ -61,33 +117,24 @@ export default async function handler(
       return res.status(200).end();
     }
 
-    return res.status(405).json({ message: '方法不允許' });
+    return res.status(405).json({
+      success: false,
+      message: '方法不允許'
+    });
 
   } catch (error: any) {
     console.error('處理請求時發生錯誤:', {
       error: error,
       message: error.message,
-      stack: error.stack,
-      name: error.name
+      name: error.name,
+      stack: error.stack
     });
-
-    // 根據錯誤類型返回適當的回應
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: '資料驗證失敗',
-        errors: Object.values(error.errors).map((err: any) => ({
-          field: err.path,
-          message: err.message
-        }))
-      });
-    }
 
     return res.status(500).json({
       success: false,
-      message: '伺服器錯誤',
-      error: error.message,
-      errorType: error.name
+      message: error.message || '伺服器錯誤',
+      error: error.name,
+      details: error.errors ? Object.values(error.errors).map((err: any) => err.message) : []
     });
   }
 } 
