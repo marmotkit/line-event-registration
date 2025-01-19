@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/router';
 import { TextField, Button, Container, Box, Typography } from '@mui/material';
 import { DateTimePicker } from '@mui/x-date-pickers';
@@ -7,11 +7,21 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import zhTW from 'date-fns/locale/zh-TW';
 import { addDays } from 'date-fns';
 
+interface FormData {
+  title: string;
+  description: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  registrationDeadline: Date | null;
+  maxParticipants: string;
+  groupId: string;
+}
+
 export default function CreateEvent() {
   const router = useRouter();
   const now = new Date();
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     startDate: addDays(now, 1),  // 預設為明天
@@ -23,7 +33,7 @@ export default function CreateEvent() {
 
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
 
@@ -66,7 +76,7 @@ export default function CreateEvent() {
       router.push('/events');
     } catch (error) {
       console.error('錯誤:', error);
-      setError(error.message);
+      setError(error instanceof Error ? error.message : '建立活動失敗');
     }
   };
 
