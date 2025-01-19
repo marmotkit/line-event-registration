@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 
-if (!process.env.MONGODB_URI) {
+const MONGODB_URI = process.env.MONGODB_URI!;
+
+if (!MONGODB_URI) {
   throw new Error('請設定 MONGODB_URI 環境變數');
 }
-
-// 確保 MONGODB_URI 一定有值
-const MONGODB_URI: string = process.env.MONGODB_URI;
 
 // 定義快取介面
 interface MongooseCache {
@@ -18,18 +17,13 @@ declare global {
   var mongoose: MongooseCache | undefined;
 }
 
-// 初始化快取
-let cached: MongooseCache = global.mongoose || {
-  conn: null,
-  promise: null
-};
+let cached = global.mongoose;
 
-// 確保全域變數存在
-if (!global.mongoose) {
-  global.mongoose = cached;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
 }
 
-async function dbConnect(): Promise<typeof mongoose> {
+async function dbConnect() {
   if (cached.conn) {
     console.log('使用已存在的資料庫連接');
     return cached.conn;
@@ -41,9 +35,6 @@ async function dbConnect(): Promise<typeof mongoose> {
     };
 
     console.log('建立新的資料庫連接...');
-    // 安全地使用 MONGODB_URI，因為已經確認它一定有值
-    console.log('MongoDB URI:', MONGODB_URI.replace(/:[^:@]*@/, ':****@'));
-
     cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongoose) => {
       console.log('資料庫連接成功');
       return mongoose;
@@ -51,14 +42,11 @@ async function dbConnect(): Promise<typeof mongoose> {
   }
 
   try {
-    const mongoose = await cached.promise;
-    cached.conn = mongoose;
-    console.log('資料庫連接狀態:', mongoose.connection.readyState);
-    return mongoose;
-  } catch (error) {
+    cached.conn = await cached.promise;
+    return cached.conn;
+  } catch (e) {
     cached.promise = null;
-    console.error('等待資料庫連接時發生錯誤:', error);
-    throw error;
+    throw e;
   }
 }
 
