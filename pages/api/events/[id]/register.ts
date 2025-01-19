@@ -17,25 +17,26 @@ export default async function handler(
     const { name, numberOfPeople, notes } = req.body;
 
     // 找到活動並更新
-    const event = await Event.findById(id);
-    
+    const event = await Event.findByIdAndUpdate(
+      id,
+      {
+        $push: {
+          registrations: {
+            name,
+            numberOfPeople: Number(numberOfPeople),
+            notes,
+            registeredAt: new Date()
+          }
+        },
+        $inc: { currentParticipants: Number(numberOfPeople) },
+        $set: { updatedAt: new Date() }
+      },
+      { new: true }
+    );
+
     if (!event) {
       return res.status(404).json({ message: '找不到活動' });
     }
-
-    // 添加報名資料
-    event.registrations.push({
-      name,
-      numberOfPeople,
-      notes,
-      registeredAt: new Date()
-    });
-
-    // 更新報名人數
-    event.currentParticipants += Number(numberOfPeople);
-    
-    // 保存更改
-    await event.save();
 
     return res.status(200).json({
       success: true,

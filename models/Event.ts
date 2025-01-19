@@ -1,72 +1,38 @@
 import mongoose from 'mongoose';
 
-// 定義報名資料 Schema
+// 報名資料的 Schema
 const registrationSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: [true, '請輸入姓名']
-  },
-  numberOfPeople: {
-    type: Number,
-    required: [true, '請輸入報名人數'],
-    min: [1, '報名人數至少為 1']
-  },
-  notes: {
-    type: String,
-    default: ''
-  },
+  name: String,
+  numberOfPeople: Number,
+  notes: String,
   registeredAt: {
     type: Date,
     default: Date.now
   }
-}, { _id: false });  // 不為每個報名記錄生成 _id
+});
 
-// 定義活動 Schema
+// 活動的 Schema
 const eventSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: [true, '請輸入活動名稱']
-  },
-  description: {
-    type: String,
-    required: [true, '請輸入活動說明']
-  },
-  startDate: {
-    type: Date,
-    required: [true, '請選擇開始時間']
-  },
-  endDate: {
-    type: Date,
-    required: [true, '請選擇結束時間']
-  },
-  registrationDeadline: {
-    type: Date,
-    required: [true, '請選擇報名截止時間']
-  },
-  maxParticipants: {
-    type: Number,
-    required: [true, '請輸入人數上限'],
-    min: [1, '人數上限至少為 1']
-  },
+  title: String,
+  description: String,
+  startDate: Date,
+  endDate: Date,
+  registrationDeadline: Date,
+  maxParticipants: Number,
   currentParticipants: {
     type: Number,
-    default: 0,
-    min: [0, '目前報名人數不能小於 0']
-  },
-  groupId: {
-    type: String,
-    required: [true, '請輸入 Line 群組 ID']
+    default: 0
   },
   status: {
     type: String,
     enum: ['active', 'cancelled', 'completed'],
     default: 'active'
   },
-  registrations: [registrationSchema],
-  createdBy: {
-    type: String,
-    required: [true, '請輸入建立者']
+  registrations: {
+    type: [registrationSchema],
+    default: []
   },
+  createdBy: String,
   createdAt: {
     type: Date,
     default: Date.now
@@ -75,26 +41,6 @@ const eventSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
-}, {
-  timestamps: true,
 });
 
-// 在儲存前轉換日期字串為 Date 物件
-eventSchema.pre('save', function(next) {
-  if (typeof this.startDate === 'string') {
-    this.startDate = new Date(this.startDate);
-  }
-  if (typeof this.endDate === 'string') {
-    this.endDate = new Date(this.endDate);
-  }
-  if (typeof this.registrationDeadline === 'string') {
-    this.registrationDeadline = new Date(this.registrationDeadline);
-  }
-  this.updatedAt = new Date();
-  next();
-});
-
-// 確保不會重複定義 model
-const Event = mongoose.models.Event || mongoose.model('Event', eventSchema);
-
-export default Event; 
+export default mongoose.models.Event || mongoose.model('Event', eventSchema); 
