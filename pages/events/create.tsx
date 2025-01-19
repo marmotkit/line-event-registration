@@ -36,21 +36,6 @@ export default function CreateEvent() {
     e.preventDefault();
     setError('');
 
-    if (!formData.startDate || !formData.endDate || !formData.registrationDeadline) {
-      setError('請填寫所有日期欄位');
-      return;
-    }
-
-    if (formData.endDate <= formData.startDate) {
-      setError('結束時間必須晚於開始時間');
-      return;
-    }
-
-    if (formData.registrationDeadline >= formData.startDate) {
-      setError('報名截止時間必須早於開始時間');
-      return;
-    }
-
     try {
       const response = await fetch('/api/events/create', {
         method: 'POST',
@@ -158,4 +143,4 @@ export default function CreateEvent() {
       </Container>
     </LocalizationProvider>
   );
-} 
+}
