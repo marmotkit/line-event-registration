@@ -1,4 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
+import mongoose from 'mongoose';
 import dbConnect from '../../../../utils/db';
 import Event from '../../../../models/Event';
 import Registration from '../../../../models/Registration';
@@ -11,16 +12,35 @@ export default async function handler(
     return res.status(405).json({ message: '方法不允許' });
   }
 
-  const { id } = req.query;
-  const { userId, lineProfile } = req.body;
-
-  await dbConnect();
-
   try {
-    // 檢查活動是否存在且開放報名
+    await dbConnect();
+
+    const { id } = req.query;
+    const { name, numberOfPeople, notes } = req.body;
+
+    // 驗證必要欄位
+    if (!name || !numberOfPeople) {
+      return res.status(400).json({
+        success: false,
+        message: '請填寫姓名和報名人數'
+      });
+    }
+
+    // 驗證 id 格式
+    if (!mongoose.Types.ObjectId.isValid(id as string)) {
+      return res.status(400).json({
+        success: false,
+        message: '無效的活動 ID'
+      });
+    }
+
+    // 找到活動
     const event = await Event.findById(id);
     if (!event) {
-      return res.status(404).json({ message: '活動不存在' });
+      return res.status(404).json({
+        success: false,
+        message: '找不到活動'
+      });
     }
 
     if (event.status !== 'active') {
@@ -34,7 +54,7 @@ export default async function handler(
     // 檢查是否重複報名
     const existingRegistration = await Registration.findOne({
       eventId: id,
-      userId: userId,
+      userId: name,
     });
 
     if (existingRegistration) {
@@ -44,8 +64,12 @@ export default async function handler(
     // 建立報名記錄
     const registration = await Registration.create({
       eventId: id,
-      userId,
-      lineProfile,
+      userId: name,
+      lineProfile: {
+        name: name,
+        numberOfPeople: numberOfPeople,
+        notes: notes,
+      },
     });
 
     // 更新活動報名人數
@@ -54,7 +78,12 @@ export default async function handler(
     });
 
     res.status(201).json(registration);
-  } catch (error) {
-    res.status(500).json({ message: '報名失敗' });
+  } catch (error: any) {
+    console.error('報名處理錯誤:', error);
+    return res.status(500).json({
+      success: false,
+      message: '報名處理失敗',
+      error: error.message
+    });
   }
 } 
