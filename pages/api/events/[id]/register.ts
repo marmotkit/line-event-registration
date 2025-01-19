@@ -24,10 +24,10 @@ export default async function handler(
     const { id } = req.query;
     const { name, numberOfPeople, notes } = req.body;
 
-    console.log('驗證報名資料...');
+    console.log('報名資料:', { name, numberOfPeople, notes });
+
     // 驗證必要欄位
     if (!name || !numberOfPeople) {
-      console.log('缺少必要欄位');
       return res.status(400).json({
         success: false,
         message: '請填寫姓名和報名人數'
@@ -36,76 +36,62 @@ export default async function handler(
 
     // 驗證 id 格式
     if (!mongoose.Types.ObjectId.isValid(id as string)) {
-      console.log('無效的活動 ID');
       return res.status(400).json({
         success: false,
         message: '無效的活動 ID'
       });
     }
 
-    console.log('查詢活動資料...');
     // 找到活動
     const event = await Event.findById(id);
-    console.log('活動資料:', event);
+    console.log('找到活動:', event);
 
     if (!event) {
-      console.log('找不到活動');
       return res.status(404).json({
         success: false,
         message: '找不到活動'
       });
     }
 
-    // 檢查活動狀態
-    if (event.status !== 'active') {
-      console.log('活動已結束報名');
-      return res.status(400).json({
-        success: false,
-        message: '活動已結束報名'
-      });
+    // 檢查活動是否有 registrations 欄位，如果沒有則初始化
+    if (!event.registrations) {
+      event.registrations = [];
     }
 
-    // 檢查報名截止時間
-    if (new Date() > new Date(event.registrationDeadline)) {
-      console.log('已超過報名截止時間');
-      return res.status(400).json({
-        success: false,
-        message: '已超過報名截止時間'
-      });
-    }
-
-    // 檢查剩餘名額
-    const remainingSpots = event.maxParticipants - event.currentParticipants;
-    if (numberOfPeople > remainingSpots) {
-      console.log('剩餘名額不足');
-      return res.status(400).json({
-        success: false,
-        message: `剩餘名額不足，目前只剩 ${remainingSpots} 個名額`
-      });
-    }
-
-    console.log('建立報名資料...');
     // 建立報名資料
     const registration = {
       name,
-      numberOfPeople,
+      numberOfPeople: parseInt(numberOfPeople),
       notes: notes || '',
       registeredAt: new Date()
     };
 
-    console.log('更新活動資料...');
+    console.log('準備更新活動資料:', {
+      registration,
+      currentParticipants: event.currentParticipants || 0
+    });
+
     // 更新活動資料
     const updatedEvent = await Event.findByIdAndUpdate(
       id,
       {
         $push: { registrations: registration },
-        $inc: { currentParticipants: numberOfPeople },
+        $inc: { currentParticipants: parseInt(numberOfPeople) },
         $set: { updatedAt: new Date() }
       },
-      { new: true, runValidators: true }
+      { 
+        new: true, 
+        runValidators: true,
+        upsert: false
+      }
     );
 
-    console.log('報名成功');
+    console.log('更新後的活動資料:', updatedEvent);
+
+    if (!updatedEvent) {
+      throw new Error('更新活動資料失敗');
+    }
+
     return res.status(200).json({
       success: true,
       message: '報名成功',
@@ -114,15 +100,26 @@ export default async function handler(
 
   } catch (error: any) {
     console.error('報名處理錯誤:', {
-      error: error,
+      name: error.name,
       message: error.message,
-      stack: error.stack
+      stack: error.stack,
+      code: error.code
     });
+
+    // 如果是 MongoDB 錯誤
+    if (error.name === 'MongoServerError') {
+      return res.status(500).json({
+        success: false,
+        message: '資料庫操作失敗',
+        error: error.message,
+        code: error.code
+      });
+    }
+
     return res.status(500).json({
       success: false,
       message: '報名處理失敗',
-      error: error.message,
-      details: error.errors ? Object.values(error.errors).map((err: any) => err.message) : []
+      error: error.message
     });
   }
 } 
