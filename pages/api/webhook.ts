@@ -2,7 +2,7 @@ import { WebhookRequestBody, MessageEvent } from '@line/bot-sdk';
 import { NextApiRequest, NextApiResponse } from 'next';
 import LineBotService from '../../services/lineBot';
 
-const config = {
+const webhookConfig = {
   channelAccessToken: process.env.LINE_CHANNEL_ACCESS_TOKEN!,
   channelSecret: process.env.LINE_CHANNEL_SECRET!,
 };
