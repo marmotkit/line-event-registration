@@ -28,9 +28,12 @@ export default async function handler(
           updatedAt: new Date()
         });
         res.status(201).json(event);
-      } catch (error) {
+      } catch (error: any) {
         console.error('建立活動失敗:', error);
-        res.status(500).json({ message: '建立活動失敗', error: error.message });
+        res.status(500).json({ 
+          message: '建立活動失敗', 
+          error: error.message || '未知錯誤'
+        });
       }
       break;
 
